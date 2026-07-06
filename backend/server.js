@@ -4,6 +4,7 @@ const path = require("path");
 require("dotenv").config();
 
 const pool = require("./config/db");
+const runMigrations = require("./scripts/migrate"); // 
 const crudFactory = require("./routes/crudFactory");
 const settingsRouter = require("./routes/settings");
 const uploadRouter = require("./routes/upload");
@@ -42,14 +43,17 @@ app.use(
 
 app.use(
   "/api/anciens-commandants",
-  crudFactory("anciens_commandants", ["name", "period", "ordre"])
+  crudFactory("anciens_commandants", ["name", "period", "img", "ordre"])
 );
 
 app.use(
   "/api/actualites",
   crudFactory("actualites", ["date_pub", "title", "excerpt", "body", "img"], "created_at DESC")
 );
-
+app.use(
+  "/api/historique-images",
+  crudFactory("historique_images", ["image", "alt", "ordre"])
+);
 app.use(
   "/api/hero-slides",
   crudFactory("hero_slides", ["image", "alt", "ordre"])
@@ -77,65 +81,68 @@ app.get("/api/site", async (req, res) => {
     const [heroSlides] = await pool.query("SELECT * FROM hero_slides ORDER BY ordre ASC, id ASC");
     const [gallery] = await pool.query("SELECT * FROM gallery_images ORDER BY ordre ASC, id ASC");
     const [campusImages] = await pool.query("SELECT * FROM campus_images ORDER BY ordre ASC, id ASC");
+    const [historiqueImages] = await pool.query("SELECT * FROM historique_images ORDER BY ordre ASC, id ASC");
     const [banners] = await pool.query("SELECT slot_key, image, alt FROM page_banners");
 
     const s = settings[0] || {};
     const bannerMap = {};
     banners.forEach((b) => (bannerMap[b.slot_key] = { image: b.image, alt: b.alt }));
 
-    res.json({
-      hero: {
-        title: s.hero_title,
-        subtitle: s.hero_subtitle,
-        motto: s.hero_motto,
-        ctaLabel: s.hero_cta_label,
-      },
-      heroSlides: heroSlides.map((h) => ({ id: h.id, image: h.image, alt: h.alt })),
-      apropos: {
-        mission: s.apropos_mission,
-        campus: s.apropos_campus,
-        videoUrl: s.apropos_video_url,
-      },
-      formations: formations.map((f) => ({
-        id: f.id,
-        icon: f.icon,
-        title: f.title,
-        desc: f.description,
-         details: f.details,
-        image: f.image,
-      })),
-      historique: {
-        intro: s.historique_intro,
-        body: s.historique_body,
-        dates: historiqueDates.map((d) => ({ id: d.id, year: d.annee, event: d.evenement })),
-      },
-      commandement: commandement.map((c) => ({
-        id: c.id,
-        role: c.role,
-        name: c.name,
-        since: c.since_label,
-        bio: c.bio,
-        img: c.img,
-      })),
-      anciensCmdts: anciensCmdts.map((c) => ({ id: c.id, name: c.name, period: c.period })),
-      actualites: actualites.map((a) => ({
-        id: a.id,
-        date: a.date_pub,
-        title: a.title,
-        excerpt: a.excerpt,
-        body: a.body,
-        img: a.img,
-      })),
-      gallery: gallery.map((g) => ({ id: g.id, image: g.image, alt: g.alt })),
-      campusImages: campusImages.map((c) => ({ id: c.id, image: c.image, alt: c.alt })),
-      banners: bannerMap,
-      contact: {
-        address: s.contact_address,
-        phone: s.contact_phone,
-        email: s.contact_email,
-         facebook: s.contact_facebook,
-      },
-    });
+   res.json({
+  hero: {
+    title: s.hero_title,
+    subtitle: s.hero_subtitle,
+    motto: s.hero_motto,
+    ctaLabel: s.hero_cta_label,
+  },
+  heroSlides: heroSlides.map((h) => ({ id: h.id, image: h.image, alt: h.alt })),
+  apropos: {
+    mission: s.apropos_mission,
+    campus: s.apropos_campus,
+    videoUrl: s.apropos_video_url,
+  },
+  formations: formations.map((f) => ({
+    id: f.id,
+    icon: f.icon,
+    title: f.title,
+    desc: f.description,
+    details: f.details,
+    image: f.image,
+  })),
+  historique: {
+    intro: s.historique_intro,
+    body: s.historique_body,
+    dates: historiqueDates.map((d) => ({ id: d.id, year: d.annee, event: d.evenement })),
+  },
+  historiqueImages: historiqueImages.map((h) => ({ id: h.id, image: h.image, alt: h.alt })),
+  commandement: commandement.map((c) => ({
+    id: c.id,
+    role: c.role,
+    name: c.name,
+    since: c.since_label,
+    bio: c.bio,
+    img: c.img,
+  })),
+  commandementFooterText: s.commandement_footer_text,
+  anciensCmdts: anciensCmdts.map((c) => ({ id: c.id, name: c.name, period: c.period, img: c.img })),
+  actualites: actualites.map((a) => ({
+    id: a.id,
+    date: a.date_pub,
+    title: a.title,
+    excerpt: a.excerpt,
+    body: a.body,
+    img: a.img,
+  })),
+  gallery: gallery.map((g) => ({ id: g.id, image: g.image, alt: g.alt })),
+  campusImages: campusImages.map((c) => ({ id: c.id, image: c.image, alt: c.alt })),
+  banners: bannerMap,
+  contact: {
+    address: s.contact_address,
+    phone: s.contact_phone,
+    email: s.contact_email,
+    facebook: s.contact_facebook,
+  },
+});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -152,4 +159,17 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`API EGNA démarrée sur http://localhost:${PORT}`));
+
+// --- Démarrage : on synchronise d'abord la base (crée les tables manquantes),
+//     puis seulement après on ouvre le serveur HTTP. ---
+async function start() {
+  try {
+    await runMigrations();
+  } catch (err) {
+    console.error("Impossible de synchroniser la base de données:", err.message);
+    process.exit(1);
+  }
+  app.listen(PORT, () => console.log(`API EGNA démarrée sur http://localhost:${PORT}`));
+}
+
+start();
