@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --navy:   #0B1F3A;
+  --navy2:  #122848;
+  --gold:   #C9A84C;
+  --gold2:  #E8C96A;
+  --cream:  #F5F7FA;
+  --gray:   #6B7280;
+  --red-mg: #FC3D1B;
+  --green-mg: #007749;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--cream);
+  color: #1a1a2e;
+}
+
+.font-cinzel { font-family: 'Cinzel', serif; }
+
+/* Ribbon diagonal — signature element */
+.mg-ribbon {
+  display: inline-flex;
+  gap: 0;
+  height: 5px;
+  width: 80px;
+  overflow: hidden;
+  border-radius: 3px;
+}
+.mg-ribbon span:nth-child(1) { flex:1; background: var(--red-mg); }
+.mg-ribbon span:nth-child(2) { flex:1; background: #fff; }
+.mg-ribbon span:nth-child(3) { flex:1; background: var(--green-mg); }
+
+/* Gold divider */
+.gold-line {
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--gold), var(--gold2));
+  border-radius: 2px;
+}
+
+/* Cards */
+.card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(11,31,58,.08);
+  transition: box-shadow .2s, transform .2s;
+}
+.card:hover {
+  box-shadow: 0 8px 32px rgba(11,31,58,.15);
+  transform: translateY(-3px);
+}
+
+/* Section padding utility */
+.section { padding: 80px 24px; }
+.section-sm { padding: 48px 24px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--cream); }
+::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 3px; }
+
+/* Back-office overlay */
+.bo-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 200;
+  display: flex; justify-content: flex-end;
+}
+.bo-panel {
+  width: min(520px, 100vw);
+  background: #fff;
+  height: 100%;
+  overflow-y: auto;
+  box-shadow: -4px 0 32px rgba(0,0,0,.2);
+  animation: slideIn .25s ease;
+}
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+/* Timeline */
+.timeline-item {
+  position: relative;
+  padding-left: 32px;
+  padding-bottom: 28px;
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 9px; top: 8px; bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--gold), transparent);
+}
+.timeline-dot {
+  position: absolute;
+  left: 0; top: 4px;
+  width: 20px; height: 20px;
+  background: var(--gold);
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 2px var(--gold);
+}
