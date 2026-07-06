@@ -56,6 +56,7 @@ export const actualitesApi = crudApi("actualites");
 export const heroSlidesApi = crudApi("hero-slides");
 export const galleryApi = crudApi("gallery");
 export const campusImagesApi = crudApi("campus-images");
+export const historiqueImagesApi = crudApi("historique-images");
 
 // --- Bannières de page (une image par emplacement, ex: "apropos_header") ---
 export const bannersApi = {

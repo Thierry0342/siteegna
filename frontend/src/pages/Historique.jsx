@@ -1,10 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSiteData } from "../context/SiteDataContext";
 import { resolveImageUrl } from "../services/api";
 export default function Historique() {
   const { data, loading, error } = useSiteData();
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const [lightbox, setLightbox] = useState(null); 
+  const [photoIndex, setPhotoIndex] = useState(0);
 
   useEffect(() => {
     if (mapInstanceRef.current || !mapRef.current || loading) return;
@@ -64,6 +66,21 @@ export default function Historique() {
   if (error) return <div className="pt-32 text-center text-red-500">Erreur : {error}</div>;
 
   const { historique, anciensCmdts } = data;
+  const historiquePhoto = data.banners?.historique_photo;
+    const galleryPhotos = data.historiqueImages?.length
+    ? data.historiqueImages
+    : historiquePhoto?.image
+    ? [{ image: historiquePhoto.image, alt: historiquePhoto.alt }]
+    : [];
+
+  useEffect(() => {
+    if (galleryPhotos.length < 2) return;
+    const t = setInterval(
+      () => setPhotoIndex((i) => (i + 1) % galleryPhotos.length),
+      5000
+    );
+    return () => clearInterval(t);
+  }, [galleryPhotos.length]);
 
   return (
     <div className="pt-16">
@@ -83,32 +100,79 @@ export default function Historique() {
 
       <section className="section max-w-4xl mx-auto">
         <div className="grid md:grid-cols-2 gap-12 items-start">
-          <div
-            className="rounded-2xl flex items-center justify-center shadow-lg"
-            style={{ height: 260, background: "linear-gradient(135deg,#0B1F3A,#1a3a5c)" }}
-          >
-            <div className="text-center text-white px-8">
-              <p className="font-cinzel font-bold text-5xl text-[#C9A84C] mb-2">EGNA</p>
-              <p className="text-sm text-blue-200">Fondée le 15 Avril 1976</p>
-              <div className="flex justify-center gap-0 mt-4 h-1.5 w-16 mx-auto overflow-hidden rounded">
-                <span className="flex-1 bg-[#FC3D1B]" />
-                <span className="flex-1 bg-white" />
-                <span className="flex-1 bg-[#007749]" />
+          {galleryPhotos.length ? (
+            <div
+              className="relative rounded-2xl overflow-hidden shadow-lg"
+              style={{ height: 260 }}
+            >
+              <img
+                src={resolveImageUrl(galleryPhotos[photoIndex].image)}
+                alt={galleryPhotos[photoIndex].alt || "École à travers les âges"}
+                className="w-full h-full object-cover cursor-zoom-in"
+                onClick={() =>
+                  setLightbox({
+                    src: resolveImageUrl(galleryPhotos[photoIndex].image),
+                    alt: galleryPhotos[photoIndex].alt || "École à travers les âges",
+                  })
+                }
+              />
+              {galleryPhotos.length > 1 && (
+                <>
+                  <button
+                    onClick={() =>
+                      setPhotoIndex(
+                        (i) => (i - 1 + galleryPhotos.length) % galleryPhotos.length
+                      )
+                    }
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={() =>
+                      setPhotoIndex((i) => (i + 1) % galleryPhotos.length)
+                    }
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg"
+                  >
+                    ›
+                  </button>
+                  <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+                    {galleryPhotos.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setPhotoIndex(i)}
+                        className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                          i === photoIndex ? "bg-white" : "bg-white/40"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div
+              className="rounded-2xl flex items-center justify-center shadow-lg"
+              style={{ height: 260, background: "linear-gradient(135deg,#0B1F3A,#1a3a5c)" }}
+            >
+              <div className="text-center text-white px-8">
+                <p className="font-cinzel font-bold text-5xl text-[#C9A84C] mb-2">EGNA</p>
+                <p className="text-sm text-blue-200">Fondée le 15 Avril 1976</p>
+                <div className="flex justify-center gap-0 mt-4 h-1.5 w-16 mx-auto overflow-hidden rounded">
+                  <span className="flex-1 bg-[#FC3D1B]" />
+                  <span className="flex-1 bg-white" />
+                  <span className="flex-1 bg-[#007749]" />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div>
             <p className="text-[#C9A84C] text-xs uppercase tracking-widest mb-2">Origines</p>
             <h2 className="font-cinzel font-bold text-xl text-[#0B1F3A] mb-4">L'École à travers les âges</h2>
             <p className="text-gray-600 leading-relaxed text-sm mb-3">{historique.intro}</p>
             <p className="text-gray-600 leading-relaxed text-sm mb-4">{historique.body}</p>
-
-            <div
-              ref={mapRef}
-              className="rounded-xl overflow-hidden border border-gray-200"
-              style={{ height: 200 }}
-            />
+            <div ref={mapRef} className="rounded-xl overflow-hidden border border-gray-200" style={{ height: 200 }} />
           </div>
         </div>
       </section>
@@ -138,18 +202,53 @@ export default function Historique() {
         <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {anciensCmdts.map((c, i) => (
             <div key={c.id ?? i} className="card p-4 text-center">
-              <div
-                className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center font-cinzel font-bold text-white text-sm"
-                style={{ background: "linear-gradient(135deg,#0B1F3A,#1a3a5c)" }}
-              >
-                {c.name.split(" ").pop().slice(0, 2).toUpperCase()}
-              </div>
+              {c.img ? (
+                <img
+                  src={resolveImageUrl(c.img)}
+                  alt={c.name}
+                  className="w-14 h-14 rounded-full mx-auto mb-3 object-cover border-2 border-[#C9A84C] cursor-zoom-in"
+                  onClick={() => setLightbox({ src: resolveImageUrl(c.img), alt: c.name })}
+                />
+              ) : (
+                <div
+                  className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center font-cinzel font-bold text-white text-sm"
+                  style={{ background: "linear-gradient(135deg,#0B1F3A,#1a3a5c)" }}
+                >
+                  {c.name.split(" ").pop().slice(0, 2).toUpperCase()}
+                </div>
+              )}
               <p className="font-semibold text-[#0B1F3A] text-sm mb-1">{c.name}</p>
               <p className="text-[#C9A84C] text-xs font-medium">{c.period}</p>
             </div>
           ))}
         </div>
       </section>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-6"
+          style={{ background: "rgba(11,31,58,0.92)" }}
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-5 right-5 text-white/80 hover:text-white"
+          >
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img
+            src={lightbox.src}
+            alt={lightbox.alt}
+            className="max-h-[85vh] max-w-full rounded-xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+          {lightbox.alt && (
+            <p className="absolute bottom-6 text-center text-white/80 text-sm px-4">{lightbox.alt}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

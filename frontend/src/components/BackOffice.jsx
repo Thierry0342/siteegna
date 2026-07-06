@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import {
   fetchSettings, updateSettings,
-  formationsApi, historiqueDatesApi, commandementApi, actualitesApi,
-  bannersApi, heroSlidesApi, galleryApi, campusImagesApi, formationImagesApi,
+  formationsApi, historiqueDatesApi, commandementApi, actualitesApi, anciensCmdtsApi,
+  bannersApi, heroSlidesApi, galleryApi, campusImagesApi, formationImagesApi,historiqueImagesApi,
   uploadImage, resolveImageUrl,
 } from "../services/api";
 const ADMIN_PASS = "egna2026";
@@ -115,13 +115,19 @@ export default function BackOffice({ onClose }) {
   const [heroSlides, setHeroSlides] = useState([]);
   const [uploadingSlide, setUploadingSlide] = useState(null);
   const [campusImages, setCampusImages] = useState([]);
+  const [historiqueImages, setHistoriqueImages] = useState([]);
+const [uploadingHistorique, setUploadingHistorique] = useState(null);
 const [gallery, setGallery] = useState([]);
 const [uploadingCampus, setUploadingCampus] = useState(null);
 const [uploadingGallery, setUploadingGallery] = useState(null);
 const [uploadingFormation, setUploadingFormation] = useState(null);
+const [anciensCmdts, setAnciensCmdts] = useState([]);
+const [uploadingAncien, setUploadingAncien] = useState(null);
+const [uploadingCommandement, setUploadingCommandement] = useState(null);
   const BANNER_SLOTS = [
   { key: "apropos_header", label: "À propos" },
-  { key: "historique_header", label: "Historique" },
+  { key: "historique_header", label: "Historique (bandeau du haut)" },
+  { key: "historique_photo", label: "Historique (photo à côté du texte)" },
   { key: "commandement_header", label: "Commandement (en-tête)" },
   { key: "commandement_footer", label: "Commandement (pied de page)" },
   { key: "actualites_header", label: "Actualités" },
@@ -176,8 +182,10 @@ useEffect(() => {
     heroSlidesApi.list(),
     campusImagesApi.list(),
     galleryApi.list(),
+    anciensCmdtsApi.list(),
+     historiqueImagesApi.list(),
   ])
-    .then(([s, f, c, hd, a, b, hs, ci, g]) => {
+    .then(([s, f, c, hd, a, b, hs, ci, g, ac,hi]) => {
       setSettings(s);
       setFormations(f);
       setCommandement(c);
@@ -187,6 +195,8 @@ useEffect(() => {
       setHeroSlides(hs);
       setCampusImages(ci);
       setGallery(g);
+      setAnciensCmdts(ac);
+        setHistoriqueImages(hi);
     })
     .catch((e) => setErr(e.message))
     .finally(() => setLoading(false));
@@ -222,6 +232,58 @@ const replaceFormationImage = async (id, idx, file) => {
     setUploadingFormation(null);
   }
 };
+
+// ---- Anciens Commandants : add/remove immédiats, nom/période/photo édités puis enregistrés ----
+const addAncienCommandant = async () => {
+  try {
+    const created = await anciensCmdtsApi.create({
+      name: "Nouveau commandant",
+      period: "",
+      ordre: anciensCmdts.length,
+    });
+    setAnciensCmdts((prev) => [...prev, created]);
+  } catch (e) {
+    setErr(e.message);
+  }
+};
+
+const removeAncienCommandant = async (id) => {
+  if (!confirm("Supprimer cet ancien commandant ?")) return;
+  try {
+    await anciensCmdtsApi.remove(id);
+    setAnciensCmdts((prev) => prev.filter((c) => c.id !== id));
+  } catch (e) {
+    setErr(e.message);
+  }
+};
+
+const replaceAncienCommandantImage = async (id, idx, file) => {
+  if (!file) return;
+  setUploadingAncien(id);
+  setErr("");
+  try {
+    const { url } = await uploadImage(file);
+    updateArrayField(setAnciensCmdts, idx, "img", url);
+  } catch (e) {
+    setErr(e.message);
+  } finally {
+    setUploadingAncien(null);
+  }
+};
+const replaceCommandementImage = async (id, idx, file) => {
+  if (!file) return;
+  setUploadingCommandement(id);
+  setErr("");
+  try {
+    const { url } = await uploadImage(file);
+    updateArrayField(setCommandement, idx, "img", url);
+  } catch (e) {
+    setErr(e.message);
+  } finally {
+    setUploadingCommandement(null);
+  }
+};
+
 const addImage = async (api, setter, list, file, altDefault) => {
   if (!file) return "new";
   try {
@@ -273,6 +335,16 @@ const removeImage = async (api, setter, id, label) => {
 const addCampusImage = (file) => { setUploadingCampus("new"); addImage(campusImagesApi, setCampusImages, campusImages, file, "Photo du campus EGNA").finally(() => setUploadingCampus(null)); };
 const replaceCampusImage = (id, file) => { setUploadingCampus(id); replaceImage(campusImagesApi, setCampusImages, id, file).finally(() => setUploadingCampus(null)); };
 const removeCampusImage = (id) => removeImage(campusImagesApi, setCampusImages, id, "cette photo du campus");
+const addHistoriqueImage = (file) => {
+  setUploadingHistorique("new");
+  addImage(historiqueImagesApi, setHistoriqueImages, historiqueImages, file, "École à travers les âges")
+    .finally(() => setUploadingHistorique(null));
+};
+const replaceHistoriqueImage = (id, file) => {
+  setUploadingHistorique(id);
+  replaceImage(historiqueImagesApi, setHistoriqueImages, id, file).finally(() => setUploadingHistorique(null));
+};
+const removeHistoriqueImage = (id) => removeImage(historiqueImagesApi, setHistoriqueImages, id, "cette photo de l'historique");
 
 const addGalleryImage = (file) => { setUploadingGallery("new"); addImage(galleryApi, setGallery, gallery, file, "Photo EGNA").finally(() => setUploadingGallery(null)); };
 const replaceGalleryImage = (id, file) => { setUploadingGallery(id); replaceImage(galleryApi, setGallery, id, file).finally(() => setUploadingGallery(null)); };
@@ -343,7 +415,7 @@ const removeHeroSlide = async (id) => {
     } catch (e) { setErr(e.message); }
   };
 
-  // ---- Formations / Commandement / Historique : édition en mémoire ----
+  // ---- Formations / Commandement / Historique / Anciens Commandants : édition en mémoire ----
   const updateArrayField = (setter, idx, field, value) => {
     setter((prev) => {
       const next = [...prev];
@@ -386,7 +458,13 @@ const removeHeroSlide = async (id) => {
           hero_cta_label: settings.hero_cta_label,
         });
       } else if (tab === "commandement") {
-        await Promise.all(commandement.map((c) => commandementApi.update(c.id, c)));
+      await Promise.all([
+        updateSettings({ commandement_footer_text: settings.commandement_footer_text }), // ⬅️ ajouté
+        ...commandement.map((c) => commandementApi.update(c.id, c)),
+      ]);
+    }
+      else if (tab === "anciens-commandants") {
+        await Promise.all(anciensCmdts.map((c) => anciensCmdtsApi.update(c.id, c)));
       } else if (tab === "historique") {
         await Promise.all([
           updateSettings({
@@ -416,6 +494,7 @@ const removeHeroSlide = async (id) => {
   { id: "hero", label: "Hero" },
   { id: "apropos", label: "À propos" },
   { id: "commandement", label: "Commandement" },
+  { id: "anciens-commandants", label: "Anciens Commandants" },
   { id: "historique", label: "Historique" },
   { id: "banners", label: "Bannières" },
   { id: "contact", label: "Contact" },
@@ -757,26 +836,106 @@ const removeHeroSlide = async (id) => {
 )}
 
               {/* COMMANDEMENT */}
-              {tab === "commandement" && (
+          {tab === "commandement" && (
+  <div className="space-y-5">
+    <p className="font-bold text-[#0B1F3A]">Officiers de commandement</p>
+      <div className="pb-4 border-b border-gray-100">
+      <label className={labelCls}>Texte du bandeau de bas de page</label>
+      <input
+        className={inputCls}
+        value={settings.commandement_footer_text || ""}
+        onChange={(e) => updateSetting("commandement_footer_text", e.target.value)}
+      />
+    </div>
+
+    {commandement.map((c, i) => (
+      <div key={c.id} className="border border-gray-100 rounded-xl p-4 space-y-3">
+        <p className="text-xs font-bold text-[#C9A84C] uppercase">{c.role}</p>
+
+        <div className="flex items-center gap-4">
+          <img
+            src={resolveImageUrl(c.img) || "/photos/cercle.jpg"}
+            alt={c.name}
+            className="w-16 h-16 rounded-full object-cover border border-gray-200"
+          />
+          <label className="text-xs bg-gray-100 text-[#0B1F3A] px-3 py-1.5 rounded-lg hover:bg-gray-200 cursor-pointer">
+            {uploadingCommandement === c.id ? "Envoi…" : "Changer la photo"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={uploadingCommandement === c.id}
+              onChange={(e) => { replaceCommandementImage(c.id, i, e.target.files[0]); e.target.value = ""; }}
+            />
+          </label>
+        </div>
+
+        <div>
+          <label className={labelCls}>Nom</label>
+          <input className={inputCls} value={c.name} onChange={(e) => updateArrayField(setCommandement, i, "name", e.target.value)} />
+        </div>
+        <div>
+          <label className={labelCls}>Depuis</label>
+          <input className={inputCls} value={c.since_label || ""} onChange={(e) => updateArrayField(setCommandement, i, "since_label", e.target.value)} />
+        </div>
+        <div>
+          <label className={labelCls}>Biographie</label>
+          <textarea className={textaCls} value={c.bio} onChange={(e) => updateArrayField(setCommandement, i, "bio", e.target.value)} />
+        </div>
+      </div>
+    ))}
+    <p className="text-xs text-gray-400">
+      La photo, le nom, la biographie et la date sont enregistrés avec le bouton « Enregistrer » ci-dessous.
+    </p>
+  </div>
+)}
+
+              {/* ANCIENS COMMANDANTS */}
+              {tab === "anciens-commandants" && (
                 <div className="space-y-5">
-                  <p className="font-bold text-[#0B1F3A]">Officiers de commandement</p>
-                  {commandement.map((c, i) => (
+                  <div className="flex justify-between items-center">
+                    <p className="font-bold text-[#0B1F3A]">Anciens Commandants ({anciensCmdts.length})</p>
+                    <button onClick={addAncienCommandant} className="text-xs bg-[#0B1F3A] text-white px-3 py-1.5 rounded-lg hover:bg-[#122848]">
+                      + Ajouter
+                    </button>
+                  </div>
+                  {anciensCmdts.map((c, i) => (
                     <div key={c.id} className="border border-gray-100 rounded-xl p-4 space-y-3">
-                      <p className="text-xs font-bold text-[#C9A84C] uppercase">{c.role}</p>
+                      <div className="flex justify-between items-start">
+                        <span className="text-xs font-bold text-[#C9A84C] uppercase">#{i + 1}</span>
+                        <button onClick={() => removeAncienCommandant(c.id)} className="text-xs text-red-400 hover:text-red-600">Supprimer</button>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {c.img ? (
+                          <img src={resolveImageUrl(c.img)} alt={c.name} className="w-16 h-16 rounded-full object-cover border border-gray-200" />
+                        ) : (
+                          <div
+                            className="w-16 h-16 rounded-full flex items-center justify-center font-cinzel font-bold text-white text-sm"
+                            style={{ background: "linear-gradient(135deg,#0B1F3A,#1a3a5c)" }}
+                          >
+                            {(c.name || "").split(" ").pop().slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <label className="text-xs bg-gray-100 text-[#0B1F3A] px-3 py-1.5 rounded-lg hover:bg-gray-200 cursor-pointer">
+                          {uploadingAncien === c.id ? "Envoi…" : "Changer la photo"}
+                          <input type="file" accept="image/*" className="hidden" disabled={uploadingAncien === c.id}
+                            onChange={(e) => { replaceAncienCommandantImage(c.id, i, e.target.files[0]); e.target.value = ""; }} />
+                        </label>
+                      </div>
                       <div>
                         <label className={labelCls}>Nom</label>
-                        <input className={inputCls} value={c.name} onChange={(e) => updateArrayField(setCommandement, i, "name", e.target.value)} />
+                        <input className={inputCls} value={c.name} onChange={(e) => updateArrayField(setAnciensCmdts, i, "name", e.target.value)} />
                       </div>
                       <div>
-                        <label className={labelCls}>Depuis</label>
-                        <input className={inputCls} value={c.since_label || ""} onChange={(e) => updateArrayField(setCommandement, i, "since_label", e.target.value)} />
-                      </div>
-                      <div>
-                        <label className={labelCls}>Biographie</label>
-                        <textarea className={textaCls} value={c.bio} onChange={(e) => updateArrayField(setCommandement, i, "bio", e.target.value)} />
+                        <label className={labelCls}>Période (ex: 1976 – 1982)</label>
+                        <input className={inputCls} value={c.period} onChange={(e) => updateArrayField(setAnciensCmdts, i, "period", e.target.value)} />
                       </div>
                     </div>
                   ))}
+                  {!anciensCmdts.length && (
+                    <p className="text-sm text-gray-400 text-center py-6">Aucun ancien commandant — ajoutez-en un ci-dessus.</p>
+                  )}
+                  <p className="text-xs text-gray-400">Le nom, la période et la photo sont enregistrés avec le bouton « Enregistrer » ci-dessous. L'ajout et la suppression sont immédiats.</p>
                 </div>
               )}
 
@@ -799,6 +958,61 @@ const removeHeroSlide = async (id) => {
                       <input className={inputCls} value={d.evenement} onChange={(e) => updateArrayField(setHistoriqueDates, i, "evenement", e.target.value)} />
                     </div>
                   ))}
+                  <div className="space-y-4 pt-4 border-t border-gray-100">
+  <div className="flex justify-between items-center">
+    <p className="font-semibold text-sm text-[#0B1F3A]">
+      Photos "École à travers les âges" ({historiqueImages.length})
+    </p>
+    <label className="text-xs bg-[#0B1F3A] text-white px-3 py-1.5 rounded-lg hover:bg-[#122848] cursor-pointer">
+      {uploadingHistorique === "new" ? "Envoi…" : "+ Ajouter"}
+      <input
+        type="file"
+        accept="image/*"
+        className="hidden"
+        disabled={uploadingHistorique === "new"}
+        onChange={(e) => { addHistoriqueImage(e.target.files[0]); e.target.value = ""; }}
+      />
+    </label>
+  </div>
+  <p className="text-xs text-gray-400">
+    Ces photos s'affichent en diaporama à gauche du texte, sur la page Historique.
+  </p>
+  {historiqueImages.map((h) => (
+    <div key={h.id} className="border border-gray-100 rounded-xl p-4 space-y-3">
+      <img src={resolveImageUrl(h.image)} alt={h.alt} className="w-full h-32 object-cover rounded-lg border border-gray-200" />
+      <div className="flex gap-3 items-end">
+        <div className="flex-1">
+          <label className={labelCls}>Texte alternatif</label>
+          <input
+            className={inputCls}
+            value={h.alt || ""}
+            onChange={(e) => updateImageAlt(setHistoriqueImages, h.id, e.target.value)}
+            onBlur={() => saveImageAlt(historiqueImagesApi, historiqueImages, setHistoriqueImages, h.id)}
+          />
+        </div>
+        <label className="text-xs bg-gray-100 text-[#0B1F3A] px-3 py-2 rounded-lg hover:bg-gray-200 cursor-pointer whitespace-nowrap">
+          {uploadingHistorique === h.id ? "Envoi…" : "Remplacer"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={uploadingHistorique === h.id}
+            onChange={(e) => { replaceHistoriqueImage(h.id, e.target.files[0]); e.target.value = ""; }}
+          />
+        </label>
+        <button onClick={() => removeHistoriqueImage(h.id)} className="text-xs text-red-400 hover:text-red-600 px-2 py-2">
+          Supprimer
+        </button>
+      </div>
+    </div>
+  ))}
+  {!historiqueImages.length && (
+    <p className="text-sm text-gray-400 text-center py-4">
+      Aucune photo — l'ancienne bannière « Historique (photo à côté du texte) » sera utilisée si disponible.
+    </p>
+  )}
+</div>
+                  <p className="text-xs text-gray-400 pt-2">Astuce : la photo affichée à côté du texte "L'École à travers les âges" se gère dans l'onglet « Bannières ».</p>
                 </div>
               )}
 

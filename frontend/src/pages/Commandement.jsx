@@ -135,9 +135,9 @@ export default function Commandement() {
           style={{ background: "rgba(11,31,58,0.72)" }}
         >
           <div className="text-center">
-            <p className="font-cinzel text-white font-bold text-xl mb-2">
-              Au service de Madagascar depuis 1976
-            </p>
+          <p className="font-cinzel text-white font-bold text-xl mb-2">
+  {data.commandementFooterText || "Au service de Madagascar depuis 1976"}
+</p>
             <div className="gold-line mx-auto" />
           </div>
         </div>
